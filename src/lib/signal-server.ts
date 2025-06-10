@@ -1,9 +1,12 @@
 import { WebSocketServer } from "ws";
-import type { SignalReceiveArgs } from "./types.js";
+import type { SignalReceiveArgs, Connection } from "./types.js";
+import { PREFIX_ID } from "./types.js";
+import { v4 as uuid } from "uuid";
 
 export default class SignalServer {
 	static _instance: SignalServer;
 	private ws: WebSocketServer;
+	private connections: Connection[] = [];
 	private receiving?: (v: SignalReceiveArgs) => void = undefined;
 
 	private constructor() {
@@ -29,15 +32,17 @@ export default class SignalServer {
 				// should not be compressed if context takeover is disabled.
 			}
 		});
-		console.log('open Web Socket server');
 		this.ws.on('connection', function connection(con) {
+			const newID = uuid();
+			SignalServer.instance.connections.push({ id: newID, client: con });
+			con.send(`${PREFIX_ID}${newID}`);
 			con.on('error', console.error);
-
 			con.on('message', function message(data) {
+				const json = JSON.parse(data.toString());
 				if (SignalServer.instance.receiving !== undefined) {
-					SignalServer.instance.receiving({ ws: con, data: data });
+					SignalServer.instance.receiving({ ws: con, id: json.id, data: json.msg });
 				}
-			});			
+			});
 		});
 	}
 
@@ -54,6 +59,14 @@ export default class SignalServer {
 
 	public setReceiving(fn: (v: SignalReceiveArgs) => void) {
 		this.receiving = fn;
+	}
+
+	public getAllConnections() {
+		return this.connections;
+	}
+
+	public getTargets(id: string) {
+		return this.connections.filter((v) => v.id !== id);
 	}
 }
 
