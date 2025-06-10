@@ -17,7 +17,7 @@ export default class SignalClient {
 			case 'message':
 				this.ws.onmessage = (e) => { 
 					const data = e.data as string;
-					// SET CLIENT ID.
+					// Set client id when reciving for onopen.
 					if (data.indexOf(PREFIX_ID) >= 0) {
 						this.id = data.replace(PREFIX_ID, '');
 					} else {
